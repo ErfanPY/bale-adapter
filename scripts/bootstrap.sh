@@ -57,7 +57,7 @@ fi
 # original Enalite/aiobale GitHub repo (the repo was taken down; mirrors
 # don't ship a pyproject.toml). See vendor/README.md for why.
 "${VENV}/bin/pip" install --quiet ./vendor/aiobale-source.zip >/dev/null 2>&1 || \
-    bash /opt/bale-adapter/vendor/install_aiobale.sh "${VENV}/bin/pip" || \
+    "${VENV}/bin/python" /opt/bale-adapter/vendor/install_aiobale.py "${VENV}/bin/pip" || \
     echo "[bootstrap] WARN: aiobale install failed — run scripts/login.py will error until fixed"
 "$VENV/bin/pip" install --quiet pydantic aiohttp aiofiles httpx pyyaml >/dev/null 2>&1 || true
 
