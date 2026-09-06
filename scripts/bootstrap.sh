@@ -13,6 +13,10 @@
 # scripts/login.py on the VPS console.
 
 set -euo pipefail
+# NOTE: ExecStartPre in bale-platform.service invokes this script directly.
+# /opt may be on a noexec mount; the deploy workflow installs a copy of this
+# script to /usr/local/bin/bale-adapter-bootstrap.sh so systemd can exec it.
+
 cd /opt/bale-adapter
 
 SESSION_DIR="/opt/bale-adapter/.session"

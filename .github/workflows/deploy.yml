@@ -68,6 +68,15 @@ jobs:
             # 2) write the systemd unit (idempotent)
             install -m 0644 systemd/bale-platform.service /etc/systemd/system/bale-platform.service
             install -m 0755 scripts/bootstrap.sh /usr/local/bin/bale-adapter-bootstrap.sh
+            # Ensure scripts/login.py is also executable (the repo tracks it
+            # with +x but a noexec mount can hide that, so re-set it locally).
+            chmod 0755 scripts/login.py
+            # /opt may be on a noexec mount (some VPS templates do this);
+            # install the bootstrap script outside the mount so systemd can
+            # exec it directly.
+            if mount | grep -E "on /opt\b" | grep -q noexec; then
+              echo "WARN: /opt is noexec — bootstrap.sh is at /usr/local/bin/bale-adapter-bootstrap.sh"
+            fi
 
             # 3) write the env file — keep the session dir honest
             umask 077

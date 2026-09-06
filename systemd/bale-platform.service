@@ -11,7 +11,7 @@ EnvironmentFile=/opt/bale-adapter/.env
 # Userbot session file is created by scripts/login.py on the VPS console.
 # The runner refuses to start if the session file is missing — it will not
 # trigger aiobale's interactive PhoneLoginCLI (which would block forever).
-ExecStartPre=/opt/bale-adapter/scripts/bootstrap.sh
+ExecStartPre=/usr/local/bin/bale-adapter-bootstrap.sh
 ExecStart=/opt/bale-adapter/venv/bin/python -m bale_platform.runner
 Restart=always
 RestartSec=5
