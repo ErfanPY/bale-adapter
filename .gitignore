@@ -8,3 +8,7 @@ venv/
 .env
 .pytest_cache/
 .DS_Store
+
+# allow vendor zip
+!vendor/
+!vendor/*.zip

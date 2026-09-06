@@ -53,9 +53,11 @@ fi
 # install deps (idempotent; pip is fast on cached wheels)
 "$VENV/bin/pip" install --quiet --upgrade pip >/dev/null 2>&1 || true
 
-# aiobale: install from GitHub (mehrad1232/Aiobale is the freshest mirror after
-# Enalite/aiobale was taken down). PyPI aiobale is an empty package, do not use.
-"$VENV/bin/pip" install --quiet "git+https://github.com/mehrad1232/Aiobale.git" >/dev/null 2>&1 || \
+# aiobale: install from the bundled vendor zip. We can't use PyPI or the
+# original Enalite/aiobale GitHub repo (the repo was taken down; mirrors
+# don't ship a pyproject.toml). See vendor/README.md for why.
+"${VENV}/bin/pip" install --quiet ./vendor/aiobale-source.zip >/dev/null 2>&1 || \
+    bash /opt/bale-adapter/vendor/install_aiobale.sh "${VENV}/bin/pip" || \
     echo "[bootstrap] WARN: aiobale install failed — run scripts/login.py will error until fixed"
 "$VENV/bin/pip" install --quiet pydantic aiohttp aiofiles httpx pyyaml >/dev/null 2>&1 || true
 
