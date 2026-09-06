@@ -1,0 +1,9 @@
+# runtime deps (installed by scripts/bootstrap.sh on the VPS)
+# pinned to GitHub because PyPI's aiobale is an empty shell and the original
+# Enalite/aiobale repo was taken down.
+git+https://github.com/mehrad1232/Aiobale.git
+pydantic
+aiohttp
+aiofiles
+httpx
+pyyaml

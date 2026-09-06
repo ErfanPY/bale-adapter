@@ -1,0 +1,104 @@
+name: Test & Deploy bale-adapter (VPS)
+
+# Bale USERBOT adapter (Shape C) for the PlayTalk company Bale account.
+# Runs as a systemd service on the same VPS as nexa-backend. Same git-pull
+# + systemctl restart pattern as nexa-backend/.github/workflows/deploy.yml.
+#
+# Secrets (set in repo Settings → Secrets and variables):
+#   - VPS_DEPLOY_KEY: SSH private key (PEM, no passphrase)
+#
+# The Bale session file is created interactively on the VPS console by
+# scripts/login.py — this workflow NEVER handles the OTP or the JWT.
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test deps
+        run: |
+          python -m pip install --quiet --upgrade pip
+          pip install --quiet httpx pyyaml pytest pytest-asyncio
+
+      - name: Run unit tests
+        run: |
+          # Pre-stub aiobale on PYTHONPATH so the adapter can be imported
+          # without the real (git-only) package being installed in CI.
+          export PYTHONPATH="$PWD/tests:$PWD"
+          pytest -q tests
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH (git pull + systemctl restart)
+        env:
+          VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+          VPS_HOST: ${{ vars.VPS_HOST || '130.185.76.124' }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "$VPS_DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@"$VPS_HOST" bash -s <<'REMOTE'
+            set -euo pipefail
+
+            # 1) sync the repo to origin (mirror the VPS to source of truth)
+            if [ ! -d /opt/bale-adapter ]; then
+              git clone https://github.com/ErfanPY/bale-adapter.git /opt/bale-adapter
+            fi
+            cd /opt/bale-adapter
+            git fetch origin master
+            git reset --hard origin/master
+
+            # 2) write the systemd unit (idempotent)
+            install -m 0644 systemd/bale-platform.service /etc/systemd/system/bale-platform.service
+            install -m 0755 scripts/bootstrap.sh /usr/local/bin/bale-adapter-bootstrap.sh
+
+            # 3) write the env file — keep the session dir honest
+            umask 077
+            {
+              echo "BALE_SESSION_PATH=/opt/bale-adapter/.session/session.bale"
+              echo "BALE_KB_DIR=/opt/bale-adapter/kb"
+              echo "BALE_LOG_FILE=/opt/bale-adapter/logs/userbot.log"
+              echo "BALE_OBSERVE_ONLY=true"
+              echo "PYTHONPATH=/opt/bale-adapter"
+            } > /opt/bale-adapter/.env
+            chmod 600 /opt/bale-adapter/.env
+
+            # 4) (re)start the service. bootstrap.sh installs aiobale from GitHub.
+            #    If no session file exists yet, runner.py will exit(2) and systemd
+            #    will keep retrying — operator must run scripts/login.py on the
+            #    VPS console to create the session.
+            systemctl daemon-reload
+            systemctl enable bale-platform.service
+            systemctl restart bale-platform.service
+
+            # 5) wait for bootstrap to land
+            for i in $(seq 1 30); do
+              state=$(systemctl is-active bale-platform.service 2>/dev/null || echo "unknown")
+              case "$state" in
+                active|failed|inactive)
+                  echo "service state after ${i}s: $state"
+                  break
+                  ;;
+              esac
+              sleep 1
+            done
+
+            journalctl -u bale-platform.service -n 15 --no-pager -o cat | tail -15
+          REMOTE
