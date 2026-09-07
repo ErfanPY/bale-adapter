@@ -26,19 +26,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from aiobale import Client, Dispatcher  # type: ignore
 from aiobale.enums import ChatType
+from aiobale.types.peer import PeerType
 from aiobale.types.peer import Peer
 
 
 def _content_text(content) -> str:
     if content is None:
         return ""
+    t = getattr(content, "text", None)
+    if t is not None and isinstance(getattr(t, "value", None), str):
+        return t.value
     v = getattr(content, "value", None)
     if isinstance(v, str):
         return v
-    cap = getattr(content, "caption", None)
-    if cap is not None and isinstance(getattr(cap, "content", None), str):
-        return cap.content
-    return ""
+    doc = getattr(content, "document", None)
+    if doc is not None:
+        cap = getattr(doc, "caption", None)
+        if cap is not None and isinstance(getattr(cap, "content", None), str):
+            return f"[file] {cap.content}"
+        return "[file]"
+    return "[empty/other]"
 
 
 def _ts(ms: int) -> str:
@@ -67,7 +74,7 @@ async def main() -> int:
         private_peers = []
         for d in dialogs:
             peer: Peer = d.peer
-            if getattr(peer, "type", None) == 1:  # PeerType.USER
+            if PeerType(getattr(peer, "type", 0)) == PeerType.PRIVATE:  # 1-on-1 chat
                 private_peers.append(d)
 
         if args.private_only:
