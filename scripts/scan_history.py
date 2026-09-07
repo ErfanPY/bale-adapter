@@ -83,9 +83,22 @@ async def main() -> int:
         else:
             targets = dialogs
 
+        name_map: dict[int, str] = {}
+        if args.get_names:
+            # Resolve display names for private peers (local_name when set, else profile name)
+            for d in targets:
+                pid = d.peer.id
+                try:
+                    u = await client.load_user(chat_id=pid, chat_type=ChatType.PRIVATE)
+                    name_map[pid] = getattr(u, "local_name", None) or getattr(u, "name", "") or str(pid)
+                except Exception:
+                    name_map[pid] = str(pid)
+            print("# Names: " + ", ".join(f"{pid}={nm}" for pid, nm in name_map.items()) + "\n")
+
         for d in targets:
             peer = d.peer
-            print(f"=== chat peer_id={peer.id} type={peer.type} unread={d.unread_count} ===")
+            label = name_map.get(peer.id, str(peer.id))
+            print(f"=== chat {label} (id={peer.id}) unread={d.unread_count} ===")
             try:
                 msgs = await client.load_history(
                     chat_id=peer.id,
@@ -111,5 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=10, help="number of dialogs to scan")
     parser.add_argument("--history", type=int, default=20, help="messages per chat")
     parser.add_argument("--private-only", action="store_true", help="only scan 1-on-1 chats")
+    parser.add_argument("--no-names", action="store_true", help="skip resolving contact names (faster)")
     args = parser.parse_args()
+    args.get_names = not args.no_names
     raise SystemExit(asyncio.run(main()))
