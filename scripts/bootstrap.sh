@@ -53,10 +53,12 @@ fi
 # install deps (idempotent; pip is fast on cached wheels)
 "$VENV/bin/pip" install --quiet --upgrade pip >/dev/null 2>&1 || true
 
-# aiobale: install from the bundled vendor zip. We can't use PyPI or the
-# original Enalite/aiobale GitHub repo (the repo was taken down; mirrors
-# don't ship a pyproject.toml). See vendor/README.md for why.
-"${VENV}/bin/pip" install --quiet ./vendor/aiobale-source.zip >/dev/null 2>&1 || \
+# aiobale: PyPI's bare `aiobale` is an empty shell and Enalite/aiobale was
+# taken down. The maintained continuation is `aiobale-py` on PyPI
+# (aminmadaniofficial/aiobale, 0.3.8+, compatible with our session files).
+# The vendor zip stays as an offline fallback only.
+"${VENV}/bin/pip" install --quiet 'aiobale-py>=0.3.8' >/dev/null 2>&1 || \
+    "${VENV}/bin/pip" install --quiet ./vendor/aiobale-source.zip >/dev/null 2>&1 || \
     "${VENV}/bin/python" /opt/bale-adapter/vendor/install_aiobale.py "${VENV}/bin/pip" || \
     echo "[bootstrap] WARN: aiobale install failed — run scripts/login.py will error until fixed"
 "${VENV}/bin/pip" install --quiet 'pydantic' 'aiohttp' 'aiofiles<24' 'httpx' 'pyyaml' 'blackboxprotobuf' 'colorama' 'magic-filter' >/dev/null 2>&1 || true

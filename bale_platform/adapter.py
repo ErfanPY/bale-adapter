@@ -30,20 +30,23 @@ def _ensure_paths(cfg: BaleUserbotConfig) -> None:
 def _extract_text(content: Any) -> str:
     """Pull a text string out of aiobale's MessageContent union.
 
-    MessageContent is a union of types; for plain text the value lives at
-    `content.value`. For media it may have a `caption.content`. For other
-    content types we return "".
+    0.3.x puts plain text at `content.text.value`; 0.1.5 also exposed
+    `content.value`. Media may carry `content.document.caption.content`.
+    Everything else yields "".
     """
     if content is None:
         return ""
+    t = getattr(content, "text", None)
+    if t is not None and isinstance(getattr(t, "value", None), str):
+        return t.value
     val = getattr(content, "value", None)
     if isinstance(val, str):
         return val
-    cap = getattr(content, "caption", None)
-    if cap is not None:
-        c = getattr(cap, "content", None)
-        if isinstance(c, str):
-            return c
+    doc = getattr(content, "document", None)
+    if doc is not None:
+        cap = getattr(doc, "caption", None)
+        if cap is not None and isinstance(getattr(cap, "content", None), str):
+            return cap.content
     return ""
 
 

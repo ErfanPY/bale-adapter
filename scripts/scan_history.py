@@ -76,7 +76,6 @@ async def main() -> int:
             peer: Peer = d.peer
             if PeerType(getattr(peer, "type", 0)) == PeerType.PRIVATE:  # 1-on-1 chat
                 private_peers.append(d)
-
         if args.private_only:
             print(f"# Filtering to {len(private_peers)} private chats\n")
             targets = private_peers
@@ -105,6 +104,8 @@ async def main() -> int:
                     chat_type=ChatType.PRIVATE if args.private_only else ChatType(peer.type),
                     limit=args.history,
                 )
+                if not isinstance(msgs, list):  # 0.1.5 returned HistoryResponse; 0.3.8 returns list
+                    msgs = msgs.data
             except Exception as e:
                 print(f"  [err loading history: {e!r}]")
                 continue
